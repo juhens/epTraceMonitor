@@ -31,7 +31,6 @@ namespace Core
                 User32.DeleteMenu(sysMenu, SC_MINIMIZE, MF_BYCOMMAND);
                 User32.DeleteMenu(sysMenu, SC_SIZE, MF_BYCOMMAND);
             }
-            Winmm.timeBeginPeriod(1);
             Console.SetWindowSize(180, 43);
 
             //TODO: bad initalizer
@@ -216,7 +215,11 @@ namespace Core
         }
 
 
+        //1. 초기화
+        //2. 
 
+
+        
         //mapData's fk? cache?
         private readonly static ConcurrentDictionary<string, string[]> epsRaw = new();
 
@@ -252,6 +255,7 @@ namespace Core
 
         public void Run()
         {
+            Winmm.timeBeginPeriod(1);
             var workerDisplayer = new Thread(() => Displayer());
             var workerCommaner = new Thread(() => Commander());
             workerDisplayer.Start();

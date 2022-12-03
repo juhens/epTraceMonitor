@@ -1,0 +1,12 @@
+﻿<Window x:Name="SettingUI" x:Class="epTraceMonitorGUI.SettingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:epTraceMonitorGUI"
+        mc:Ignorable="d"
+        WindowStartupLocation="CenterScreen"
+        Title="Setting" Height="450" Width="570" Closing="Setting_Closing" ResizeMode="NoResize">
+    <Grid>
+    </Grid>
+</Window>
