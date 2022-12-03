@@ -5,7 +5,6 @@ using System.Security;
 
 namespace Core.Native
 {
-    /// <summary/>
     public static class Kernel32
     {
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -34,5 +33,17 @@ namespace Core.Native
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool VirtualFree([In] ulong lpAddress, UIntPtr dwSize, Enums.MEM_ALLOCATION_TYPE dwFreeType);
+
+        [DllImport("kernel32.dll", ExactSpelling = true)]
+        public static extern IntPtr GetConsoleWindow();
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr GetStdHandle(int nStdHandle);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
     }
 }
