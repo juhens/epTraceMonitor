@@ -324,7 +324,7 @@ namespace Core
             foreach (uint checkPoint in lastCheckpointSet)
             {
                 var dic = epmapDic[checkPoint];
-                var log = $"            |{dic.FileName,20}|{dic.FunctionName,32}():{dic.Line,-5}|  {dic.Content}";
+                var log = $"            |{dic.FileName,20}|{dic.FunctionName,32}:{dic.Line,-5}|  {dic.Content}";
                 sb.AppendLine(log);
             }
             if (lastCheckpointSet.Count != 0)
