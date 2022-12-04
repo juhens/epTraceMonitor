@@ -1,4 +1,5 @@
-﻿using Core.Native;
+﻿using Core.Models;
+using Core.Native;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -7,14 +8,18 @@ namespace Core
 {
     public class EPTraceMonitor
     {
-        //TODO: enum
-        private const int MF_BYCOMMAND = 0x00000000;
-        private const int SC_CLOSE = 0xF060;
-        private const int SC_MAXIMIZE = 0xF020;
-        private const int SC_MINIMIZE = 0xF030;
-        private const int SC_SIZE = 0xF000;//resize
-
         public EPTraceMonitor(string[] args)
+        {
+            ConsoleSetting();
+            Span<string> epmapFileSpan = LoadEPMapFile(args);
+            this.headerArr = GetHeaderArray(epmapFileSpan);
+            this.epmapDic = GenerateEPMapDic(epmapFileSpan);
+            this.j = OpenProcess();
+            this.traceTableStart = GettraceTableStart();
+        }
+
+        //Init
+        private void ConsoleSetting()
         {
             IntPtr handle = Kernel32.GetConsoleWindow();
             IntPtr sysMenu = User32.GetSystemMenu(handle, false);
@@ -28,45 +33,32 @@ namespace Core
             Console.Title = $"epTraceMonitor";
             if (handle != IntPtr.Zero)
             {
-                User32.DeleteMenu(sysMenu, SC_MINIMIZE, MF_BYCOMMAND);
-                User32.DeleteMenu(sysMenu, SC_SIZE, MF_BYCOMMAND);
+                User32.DeleteMenu(sysMenu, (int)Enums.SysCommands.SC_MINIMIZE, (int)Enums.EnableMenuItem.MF_BYCOMMAND);
+                User32.DeleteMenu(sysMenu, (int)Enums.SysCommands.SC_SIZE, (int)Enums.EnableMenuItem.MF_BYCOMMAND);
             }
             Console.SetWindowSize(180, 43);
-
-            //TODO: bad initalizer
-            OpenEpMap(args);
-            OpenProcess();
-            traceTableStart = WaittingGame();
         }
-
-        //Init
-        private void OpenEpMap(string[] args)
+        private Span<string> LoadEPMapFile(string[] args)
         {
             if (args.Length == 0)
-            {
-                Console.WriteLine("argument가 잘못되었습니다");
-                Console.WriteLine("epTraceMonitor가 종료됩니다.");
-                Thread.Sleep(3000);
-                Environment.Exit(0);
-            }
+                ExitProgram("argument가 잘못되었습니다");
 
-            //read epmap
-            string epmapPath = args[0];
-            Span<string> textSpan = new();
+            string epmapFilePath = args[0];
+            Span<string> epmapFileSpan = new();
             try
             {
-                textSpan = File.ReadAllText(epmapPath).Split("\r\n").AsSpan();
+                epmapFileSpan = File.ReadAllText(epmapFilePath).Split("\r\n").AsSpan();
             }
             catch
             {
-                Console.WriteLine("epmap을 읽을 수 없습니다");
-                Console.WriteLine("epTraceMonitor가 종료됩니다.");
-                Thread.Sleep(3000);
-                Environment.Exit(0);
+                ExitProgram("경로가 잘못되었거나 epmap을 읽을 수 없습니다");
             }
             //remove \n
-            textSpan = textSpan.Slice(0, textSpan.Length - 1);
-
+            epmapFileSpan = epmapFileSpan.Slice(0, epmapFileSpan.Length - 1);
+            return epmapFileSpan;
+        }
+        private byte[] GetHeaderArray(Span<string> textSpan)
+        {
             //header 2
             var headerStr = textSpan.Slice(0, 2);
             var header1 = headerStr[0].AsSpan().Slice(4);
@@ -74,36 +66,11 @@ namespace Core
 
             if (header1.Length != 32 || header2.Length != 32)
             {
-                Console.WriteLine("헤더 길이가 잘못되었습니다");
-                Console.WriteLine("epTraceMonitor가 종료됩니다.");
-                Thread.Sleep(3000);
-                Environment.Exit(0);
-            }
-
-
-            //mapData
-            var mapDataStr = textSpan.Slice(headerStr.Length);
-            for (int i = 0; i < mapDataStr.Length; i++)
-            {
-                uint key = 0;
-                try
-                {
-                    key = uint.Parse(mapDataStr[i].AsSpan().Slice(3, 8), System.Globalization.NumberStyles.HexNumber);
-                }
-                catch
-                {
-                    Console.WriteLine("epmap을 읽을 수 없습니다");
-                    Console.WriteLine("epTraceMonitor가 종료됩니다.");
-                    Thread.Sleep(3000);
-                    Environment.Exit(0);
-                }
-
-                var mapData = new MapData(mapDataStr[i].AsSpan().Slice(14).ToString().Split("|"));
-                mapDataDic[key] = mapData;
+                ExitProgram("헤더 길이가 잘못되었습니다");
             }
 
             //parse Hex
-            headerArr = new byte[header2.Length / 2];
+            var headerArr = new byte[header2.Length / 2];
             for (int i = 0; i < header2.Length; i = i + 2)
             {
                 try
@@ -112,77 +79,105 @@ namespace Core
                 }
                 catch
                 {
-                    Console.WriteLine("헤더를 읽을 수 없습니다.");
-                    Console.WriteLine("epTraceMonitor가 종료됩니다.");
-                    Thread.Sleep(3000);
-                    Environment.Exit(0);
+                    ExitProgram("헤더를 읽을 수 없습니다.");
                 }
             }
+            return headerArr;
         }
-        private void OpenProcess()
+        private ConcurrentDictionary<uint, EPMap> GenerateEPMapDic(Span<string> epmapFileSpan)
+        {
+            epmapFileSpan = epmapFileSpan.Slice(2); //'2' means header area
+            ConcurrentDictionary<uint, EPMap> epmapDic = new();
+            for (int i = 0; i < epmapFileSpan.Length; i++)
+            {
+                uint identify = 0;
+                try
+                {
+                    identify = uint.Parse(epmapFileSpan[i].AsSpan().Slice(3, 8), System.Globalization.NumberStyles.HexNumber);
+                }
+                catch
+                {
+                    ExitProgram("epmap 식별자를 읽을 수 없습니다");
+                }
+                string[] tmp = epmapFileSpan[i].AsSpan().Slice(14).ToString().Split("|");
+                string? filePath = Path.GetDirectoryName(tmp[0]);
+                if (filePath == null)
+                {
+                    ExitProgram("파일경로를 읽을 수 없습니다");
+                }
+                string fileName = Path.GetFileName(tmp[0]);
+                if (fileName == null)
+                {
+                    ExitProgram("파일이름을 읽을 수 없습니다");
+                }
+                string functionName = tmp[1] + "()";
+                uint line = 0;
+                try
+                {
+                    line = uint.Parse(tmp[2]);
+                }
+                catch
+                {
+                    ExitProgram("라인 수 를 읽을 수 없습니다");
+                }
+                #pragma warning disable CS8604 // 가능한 null 참조 인수입니다.    위에서 처리 다해뒀음
+                epmapDic[identify] = new EPMap(filePath, fileName, functionName, line);
+                #pragma warning restore CS8604 // 가능한 null 참조 인수입니다.
+            }
+            return epmapDic;
+        }
+        private JhMemory OpenProcess()
         {
             //open process
             try
             {
-                j = new JhMemory(Process.GetProcessesByName("StarCraft")[0]);
+                return new JhMemory(Process.GetProcessesByName("StarCraft")[0]);
             }
             catch
             {
-                Console.WriteLine("스타크래프트를 먼저 실행하세요.");
-                Console.WriteLine("epTraceMonitor가 종료됩니다.");
-                Thread.Sleep(3000);
-                Environment.Exit(0);
+                ExitProgram("스타크래프트를 먼저 실행하세요.");
+                return new(Process.GetCurrentProcess()); //will never be execute
+
             }
-        }
-        private ulong WaittingGame()
+        }     
+        private ulong GettraceTableStart()
         {
             //scan header signature
             int tryCount = 1;
-            ulong? result = null;
-            while (result == null)
+            ulong? traceTableStart = null;
+            Console.WriteLine($"게임 입장을 기다리는 중입니다.");
+            while (traceTableStart == null)
             {
                 Console.Write($"{tryCount}번째 시도중...");
-                Console.SetCursorPosition(0, 0);
-                result = j.Scan(headerArr);
+                Console.SetCursorPosition(0, 1);
+                traceTableStart = j.Scan(headerArr);
                 Thread.Sleep(1000);
                 tryCount++;
             }
             GC.Collect();
 
-            return result.Value;
+            return traceTableStart.Value;
         }
 
-        //TODO: change class?
-        private struct MapData
+
+        //shortcut
+        private void ExitProgram(string msg)
         {
-            public MapData(string[] strings)
-            {
-                FilePath = strings[0];
-                FileName = Path.GetFileName(strings[0]);
-                FunctionName = strings[1];
-                Line = int.Parse(strings[2]);
-
-                if (!epsRaw.ContainsKey(FilePath))
-                {
-                    epsRaw[FilePath] = File.ReadAllLines(FilePath, Encoding.Default);
-                }
-            }
-            public string GetLineContent()
-            {
-                if (Content != null)
-                    return Content;
-
-                Content = epsRaw[FilePath][Line - 1].Trim().Replace(Environment.NewLine, string.Empty).Split("\t")[0];
-                if (Content.Length > 80)
-                    Content = Content.AsSpan().Slice(0, 80).ToString();
-                return Content;
-            }
-            public string FilePath;
-            public string FileName;
-            public string FunctionName;
-            public int Line;
-            private string? Content;
+            Console.WriteLine(msg);
+            Console.WriteLine("epTraceMonitor가 종료됩니다.");
+            Thread.Sleep(3000);
+            Environment.Exit(0);
         }
+        private void CleanConsoleWrite(string msg, int top)
+        {
+            Console.SetCursorPosition(0, top);
+            Console.Write(new string(' ', Console.WindowWidth));
+            Console.SetCursorPosition(0, top);
+            Console.Write(msg);
+        }
+
+
+
         private struct CountLog
         {
             public CountLog()
@@ -201,7 +196,6 @@ namespace Core
                 this.traceCount = 0;
             }
         }
-
         enum Filter
         {
             BlackList,
@@ -215,16 +209,16 @@ namespace Core
         }
 
 
-        //1. 초기화
-        //2. 
 
-
-        
-        //mapData's fk? cache?
-        private readonly static ConcurrentDictionary<string, string[]> epsRaw = new();
+        //init(w), main(r), displayer(r)
+        private ConcurrentDictionary<uint, EPMap> epmapDic;
 
         //init(w), main(r)
-        private ConcurrentDictionary<uint, MapData> mapDataDic = new();
+        private JhMemory j;
+        byte[] headerArr;
+        private ulong traceTableStart;
+
+
 
         //main(r), commander(w)
         private readonly HashSet<string> blackList = new();
@@ -247,11 +241,7 @@ namespace Core
         //displayer(r), commander(r)
         const int commandPos = 40;
 
-        //init(w), main(r)
-        private JhMemory j = new(Process.GetCurrentProcess());
-        byte[] headerArr = new byte[32];
 
-        private ulong traceTableStart;
 
         public void Run()
         {
@@ -260,6 +250,8 @@ namespace Core
             var workerCommaner = new Thread(() => Commander());
             workerDisplayer.Start();
             workerCommaner.Start();
+
+
 
 
             Span<uint> stackTraceBuffer = stackalloc uint[2048 * 4];
@@ -331,8 +323,8 @@ namespace Core
             var sb = new StringBuilder();
             foreach (uint checkPoint in lastCheckpointSet)
             {
-                var dic = mapDataDic[checkPoint];
-                var log = $"            |{dic.FileName,20}|{dic.FunctionName,32}():{dic.Line,-5}|  {dic.GetLineContent()}";
+                var dic = epmapDic[checkPoint];
+                var log = $"            |{dic.FileName,20}|{dic.FunctionName,32}():{dic.Line,-5}|  {dic.Content}";
                 sb.AppendLine(log);
             }
             if (lastCheckpointSet.Count != 0)
@@ -374,16 +366,16 @@ namespace Core
                     {
                         if (filter == Filter.BlackList)
                         {
-                            if (blackList.Contains(mapDataDic[dic.Key].FileName) || blackList.Contains($"{mapDataDic[dic.Key].FunctionName}()") || blackList.Contains($"{mapDataDic[dic.Key].FunctionName}():{mapDataDic[dic.Key].Line}"))
+                            if (blackList.Contains(epmapDic[dic.Key].FileName) || blackList.Contains($"{epmapDic[dic.Key].FunctionName}()") || blackList.Contains($"{epmapDic[dic.Key].FunctionName}():{epmapDic[dic.Key].Line}"))
                                 continue;
                         }
                         else
                         {
-                            if (!whiteList.Contains(mapDataDic[dic.Key].FileName) && !whiteList.Contains($"{mapDataDic[dic.Key].FunctionName}()") && !whiteList.Contains($"{mapDataDic[dic.Key].FunctionName}():{mapDataDic[dic.Key].Line}"))
+                            if (!whiteList.Contains(epmapDic[dic.Key].FileName) && !whiteList.Contains($"{epmapDic[dic.Key].FunctionName}()") && !whiteList.Contains($"{epmapDic[dic.Key].FunctionName}():{epmapDic[dic.Key].Line}"))
                                 continue;
                         }
 
-                        var log = $"| {dic.Value,10} | {mapDataDic[dic.Key].FileName,20} | {mapDataDic[dic.Key].FunctionName,32}():{mapDataDic[dic.Key].Line,-5} | {mapDataDic[dic.Key].GetLineContent()}";
+                        var log = $"| {dic.Value,10} | {epmapDic[dic.Key].FileName,20} | {epmapDic[dic.Key].FunctionName,32}():{epmapDic[dic.Key].Line,-5} | {epmapDic[dic.Key].Content}";
                         sb.Append(log);
                         int padding = Encoding.Default.GetByteCount(log);
 
@@ -434,52 +426,40 @@ namespace Core
                     case "black":
                         {
                             if (input.Length != 1)
-                            {
                                 goto default;
-                            }
-                            Console.SetCursorPosition(0, commandPos + 1);
-                            Console.Write(new string(' ', Console.WindowWidth));
-                            Console.SetCursorPosition(0, commandPos + 1);
+
                             filter = Filter.BlackList;
-                            Console.Write($"필터 - 블랙리스트");
+                            CleanConsoleWrite($"필터 - 블랙리스트", commandPos + 1);
                             break;
                         }
                     case "white":
                         {
                             if (input.Length != 1)
-                            {
                                 goto default;
-                            }
-                            Console.SetCursorPosition(0, commandPos + 1);
-                            Console.Write(new string(' ', Console.WindowWidth));
-                            Console.SetCursorPosition(0, commandPos + 1);
+
                             filter = Filter.WhiteList;
-                            Console.Write($"필터 - 화이트리스트");
+                            CleanConsoleWrite($"필터 - 화이트리스트", commandPos + 1);
                             break;
                         }
                     case "speed":
                         {
                             if (input.Length != 2)
-                            {
                                 goto default;
-                            }
-                            Console.SetCursorPosition(0, commandPos + 1);
-                            Console.Write(new string(' ', Console.WindowWidth));
-                            Console.SetCursorPosition(0, commandPos + 1);
+
                             if (input[1] == "high")
                             {
                                 speed = Speed.High;
-                                Console.Write($"tick 갱신주기 빠름 (cpu성능 비례)");
+                                CleanConsoleWrite($"tick 갱신주기 빠름 (cpu성능 비례)", commandPos + 1);
                             }
                             else if (input[1] == "mid")
                             {
                                 speed = Speed.Mid;
-                                Console.Write($"tick 갱신주기 보통 (1ms)");
+                                CleanConsoleWrite($"tick 갱신주기 보통 (1ms)", commandPos + 1);
                             }
                             else if (input[1] == "low")
                             {
                                 speed = Speed.Low;
-                                Console.Write($"tick 갱신주기 느림 (10ms)");
+                                CleanConsoleWrite($"tick 갱신주기 느림 (10ms)", commandPos + 1);
                             }
                             else
                                 goto default;
@@ -489,24 +469,19 @@ namespace Core
                     case "fl":
                         {
                             if (input.Length != 2)
-                            {
                                 goto default;
-                            }
-                            Console.SetCursorPosition(0, commandPos + 1);
-                            Console.Write(new string(' ', Console.WindowWidth));
-                            Console.SetCursorPosition(0, commandPos + 1);
 
                             if (filter == Filter.BlackList)
                             {
                                 if (blackList.Contains(input[1]))
                                 {
                                     blackList.Remove(input[1]);
-                                    Console.Write($"블랙리스트 : {input[1]} 를 제거했습니다.");
+                                    CleanConsoleWrite($"블랙리스트 : {input[1]} 를 제거했습니다.", commandPos + 1);
                                 }
                                 else
                                 {
                                     blackList.Add(input[1]);
-                                    Console.Write($"블랙리스트 : {input[1]} 가 추가되었습니다.");
+                                    CleanConsoleWrite($"블랙리스트 : {input[1]} 가 추가되었습니다.", commandPos + 1);
                                 }
                             }
                             else
@@ -514,12 +489,12 @@ namespace Core
                                 if (whiteList.Contains(input[1]))
                                 {
                                     whiteList.Remove(input[1]);
-                                    Console.Write($"화이트리스트 : {input[1]} 를 제거했습니다.");
+                                    CleanConsoleWrite($"화이트리스트 : {input[1]} 를 제거했습니다.", commandPos + 1);
                                 }
                                 else
                                 {
                                     whiteList.Add(input[1]);
-                                    Console.Write($"화이트리스트 : {input[1]} 가 추가되었습니다.");
+                                    CleanConsoleWrite($"화이트리스트 : {input[1]} 가 추가되었습니다.", commandPos + 1);
                                 }
                             }
                             break;
@@ -527,62 +502,48 @@ namespace Core
                     case "pp":
                         {
                             pause = !pause;
-                            Console.SetCursorPosition(0, commandPos + 1);
-                            Console.Write(new string(' ', Console.WindowWidth));
-                            Console.SetCursorPosition(0, commandPos + 1);
                             if (pause)
-                                Console.Write($"일시중지");
+                                CleanConsoleWrite($"일시중지", commandPos + 1);
                             else
-                                Console.Write($"재개");
+                                CleanConsoleWrite($"재개", commandPos + 1);
                             break;
                         }
                     case "reset":
                         {
                             if (input.Length != 2)
-                            {
                                 goto default;
-                            }
-                            Console.SetCursorPosition(0, commandPos + 1);
-                            Console.Write(new string(' ', Console.WindowWidth));
-                            Console.SetCursorPosition(0, commandPos + 1);
 
                             if (input[1] == "black")
                             {
                                 blackList.Clear();
-                                Console.Write($"블랙리스트 초기화");
+                                CleanConsoleWrite($"블랙리스트 초기화", commandPos + 1);
                             }
                             else if (input[1] == "white")
                             {
                                 whiteList.Clear();
-                                Console.Write($"화이트리스트 초기화");
+                                CleanConsoleWrite($"화이트리스트 초기화", commandPos + 1);
                             }
                             else if (input[1] == "bw")
                             {
                                 blackList.Clear();
                                 whiteList.Clear();
-                                Console.Write($"블랙리스트, 화이트리스트 초기화");
+                                CleanConsoleWrite($"블랙리스트, 화이트리스트 초기화", commandPos + 1);
                             }
                             else if (input[1] == "trace")
                             {
                                 countLog.Reset();
                                 sampleHitCount.Clear();
-                                Console.Write($"트레이스 초기화");
+                                CleanConsoleWrite($"트레이스 초기화", commandPos + 1);
                             }
                             else
                                 goto default;
                             break;
                         }
                     default:
-                        Console.SetCursorPosition(0, commandPos + 1);
-                        Console.Write(new string(' ', Console.WindowWidth));
-                        Console.SetCursorPosition(0, commandPos + 1);
-                        Console.Write($"{string.Join(" ", input)} 는 잘못된 명령어 입니다.");
+                        CleanConsoleWrite($"{string.Join(" ", input)} 는 잘못된 명령어 입니다.", commandPos + 1);
                         break;
                 }
-                Console.SetCursorPosition(0, commandPos);
-                Console.Write(new string(' ', Console.WindowWidth));
-                Console.SetCursorPosition(0, commandPos);
-                Console.Write("command>>");
+                CleanConsoleWrite("command>>", commandPos);
             }
         }
     }

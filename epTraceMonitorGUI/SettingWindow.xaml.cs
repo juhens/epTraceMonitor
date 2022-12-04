@@ -15,9 +15,6 @@ using System.Windows.Shapes;
 
 namespace epTraceMonitorGUI
 {
-    /// <summary>
-    /// Setting.xaml에 대한 상호 작용 논리
-    /// </summary>
     public partial class SettingWindow : Window
     {
         public SettingWindow()

@@ -8,7 +8,7 @@
         
         Background="{DynamicResource MaterialDesignPaper}" 
         Foreground="{DynamicResource MaterialDesignBody}" 
-        Title="epTraceMonitor" WindowStartupLocation="CenterScreen" Width="1200" Height="800">
+        Title="epTraceMonitor" WindowStartupLocation="CenterScreen" Width="1200" Height="800" Closing="Window_Closing" Loaded="Window_Loaded">
     <DockPanel LastChildFill="True">
         <DockPanel DockPanel.Dock="Top" Height="110">
             <Grid>
@@ -20,7 +20,7 @@
                 </Grid.ColumnDefinitions>
                 <RadioButton Grid.Column="0" Style="{StaticResource MaterialDesignCalendarMeridiemRadioButtonDefault}" Margin="4" IsChecked="True" Content="Blacklist" />
                 <RadioButton Grid.Column="1" Style="{StaticResource MaterialDesignCalendarMeridiemRadioButtonDefault}" Margin="4" IsChecked="False" Content="Whitelist" />
-                <TextBox Grid.Column="2" Margin="4" FontSize="15" MinWidth="500"/>
+                <TextBox Grid.Column="2" Margin="4" TextWrapping="WrapWithOverflow" AcceptsReturn="True" FontSize="15" MinWidth="500"/>
                 <DockPanel Grid.Column="3">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -29,8 +29,8 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <Button Grid.Row="0" Content="Reset" Style="{StaticResource MaterialDesignOutlinedButton}"></Button>
-                        <Button Grid.Row="1" Content="Pause" Style="{StaticResource MaterialDesignOutlinedButton}"></Button>
-                        <Button Grid.Row="2" Content="Setting" Style="{StaticResource MaterialDesignOutlinedButton}" Click="Button_Click"></Button>
+                        <Button x:Name="PPButon" Grid.Row="1" Content="Pause" Style="{StaticResource MaterialDesignOutlinedButton}" Click="PPButton_Click"></Button>
+                        <Button Grid.Row="2" Content="Setting" Style="{StaticResource MaterialDesignOutlinedButton}" Click="SettingButton_Click"></Button>
                     </Grid>
                 </DockPanel>
             </Grid>
@@ -38,13 +38,18 @@
             
         </DockPanel>
         <Grid>
-            <DataGrid ScrollViewer.CanContentScroll="True" x:Name="TagSelection" FontSize="15">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock FontSize="13" Margin="4" Text="Successed : 123,456,789  Failed :  123,456,789  UpdateTrace : 123,456,789"></TextBlock>
+            <DataGrid Grid.Row="1" ScrollViewer.CanContentScroll="True" x:Name="LogDataGrid" AutoGenerateColumns="False" CanUserAddRows="False">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Trace" Width="0.25*"  Binding="{Binding TagTrace}" EditingElementStyle="{StaticResource MaterialDesignDataGridTextColumnEditingStyle}"/>
-                    <DataGridTextColumn Header="File"  Width="0.4*" Binding="{Binding TagFileName}"  EditingElementStyle="{StaticResource MaterialDesignDataGridTextColumnEditingStyle}"/>
-                    <DataGridTextColumn Header="Function" Width="0.5*" Binding="{Binding TagFunctionName}"  EditingElementStyle="{StaticResource MaterialDesignDataGridTextColumnEditingStyle}"/>
-                    <DataGridTextColumn Header="Lines" Width="0.25*" Binding="{Binding TagLines}"  EditingElementStyle="{StaticResource MaterialDesignDataGridTextColumnEditingStyle}"/>
-                    <DataGridTextColumn Header="Code" Width="*" Binding="{Binding TagLines}"  EditingElementStyle="{StaticResource MaterialDesignDataGridTextColumnEditingStyle}"/>
+                    <DataGridTextColumn Header="Trace" IsReadOnly="True" Width="0.25*"  Binding="{Binding Path=trace}" />
+                    <DataGridTextColumn Header="File"  IsReadOnly="True" Width="0.4*" Binding="{Binding Path=fileName}" />
+                    <DataGridTextColumn Header="Function" IsReadOnly="True" Width="0.5*" Binding="{Binding Path=funcName}" />
+                    <DataGridTextColumn Header="Lines" IsReadOnly="True" Width="0.25*" Binding="{Binding Path=line}" />
+                    <DataGridTextColumn Header="Code" IsReadOnly="True" Width="*" Binding="{Binding Path=code}" />
                 </DataGrid.Columns>
             </DataGrid>
         </Grid>
