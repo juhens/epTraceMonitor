@@ -366,16 +366,16 @@ namespace Core
                     {
                         if (filter == Filter.BlackList)
                         {
-                            if (blackList.Contains(epmapDic[dic.Key].FileName) || blackList.Contains($"{epmapDic[dic.Key].FunctionName}()") || blackList.Contains($"{epmapDic[dic.Key].FunctionName}():{epmapDic[dic.Key].Line}"))
+                            if (blackList.Contains(epmapDic[dic.Key].FileName) || blackList.Contains($"{epmapDic[dic.Key].FunctionName}") || blackList.Contains($"{epmapDic[dic.Key].FunctionName}:{epmapDic[dic.Key].Line}"))
                                 continue;
                         }
                         else
                         {
-                            if (!whiteList.Contains(epmapDic[dic.Key].FileName) && !whiteList.Contains($"{epmapDic[dic.Key].FunctionName}()") && !whiteList.Contains($"{epmapDic[dic.Key].FunctionName}():{epmapDic[dic.Key].Line}"))
+                            if (!whiteList.Contains(epmapDic[dic.Key].FileName) && !whiteList.Contains($"{epmapDic[dic.Key].FunctionName}") && !whiteList.Contains($"{epmapDic[dic.Key].FunctionName}:{epmapDic[dic.Key].Line}"))
                                 continue;
                         }
 
-                        var log = $"| {dic.Value,10} | {epmapDic[dic.Key].FileName,20} | {epmapDic[dic.Key].FunctionName,32}():{epmapDic[dic.Key].Line,-5} | {epmapDic[dic.Key].Content}";
+                        var log = $"| {dic.Value,10} | {epmapDic[dic.Key].FileName,20} | {epmapDic[dic.Key].FunctionName,32}:{epmapDic[dic.Key].Line,-5} | {epmapDic[dic.Key].Content}";
                         sb.Append(log);
                         int padding = Encoding.Default.GetByteCount(log);
 
