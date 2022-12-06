@@ -220,8 +220,6 @@ namespace Core
         byte[] headerArr;
         private ulong traceTableStart;
 
-
-
         //main(r), commander(w)
         private readonly HashSet<string> blackList = new();
         private readonly HashSet<string> whiteList = new();
@@ -252,9 +250,6 @@ namespace Core
             var workerCommander = new Thread(() => Commander());
             workerDisplayer.Start();
             workerCommander.Start();
-
-
-
 
             Span<uint> stackTraceBuffer = stackalloc uint[2048 * 4];
             Span<byte> currentHeader = stackalloc byte[16];
@@ -320,13 +315,14 @@ namespace Core
             }
             workerState = false;
 
-            Console.WriteLine(new string(' ', Console.WindowWidth));
-            Console.WriteLine(new string(' ', Console.WindowWidth));
+
+            CleanConsoleWrite(string.Empty, commandPos);
+            CleanConsoleWrite(string.Empty, commandPos + 1);
             var sb = new StringBuilder();
             foreach (uint checkPoint in lastCheckpointSet)
             {
                 var dic = epmapDic[checkPoint];
-                var log = $"            |{dic.FileName,20}|{dic.FunctionName,32}:{dic.Line,-5}|  {dic.Content}";
+                var log = $"| {string.Empty,10} | {dic.FileName,20} | {dic.FunctionName,32}:{dic.Line,-5} | {dic.Content}";
                 sb.AppendLine(log);
             }
             if (lastCheckpointSet.Count != 0)
@@ -387,7 +383,12 @@ namespace Core
                                 Console.SetWindowSize(padding + 1, Console.WindowHeight);
                             sb.Append(' ', Console.WindowWidth - padding - 1);
                         }
-                        catch { }
+                        catch
+                        {
+                            //sometime text overlap when console auto resized
+                            sb.Clear();
+                            continue;
+                        }
                         sb.Append(Environment.NewLine);
                     }
                     else
@@ -429,7 +430,6 @@ namespace Core
                         {
                             if (input.Length != 1)
                                 goto default;
-
                             filter = Filter.BlackList;
                             CleanConsoleWrite($"필터 - 블랙리스트", commandPos + 1);
                             break;

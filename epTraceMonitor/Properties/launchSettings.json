@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "epTraceMonitor": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Users\\muzik\\Documents\\StarCraft\\Maps\\Download\\!     !game.scx.epmap\""
+    }
+  }
+}
