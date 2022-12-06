@@ -28,7 +28,7 @@
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <Button Grid.Row="0" Content="Reset" Style="{StaticResource MaterialDesignOutlinedButton}"></Button>
+                        <Button Grid.Row="0" Content="Reset" Style="{StaticResource MaterialDesignOutlinedButton}" Click="Button_Click"></Button>
                         <Button x:Name="PPButon" Grid.Row="1" Content="Pause" Style="{StaticResource MaterialDesignOutlinedButton}" Click="PPButton_Click"></Button>
                         <Button Grid.Row="2" Content="Setting" Style="{StaticResource MaterialDesignOutlinedButton}" Click="SettingButton_Click"></Button>
                     </Grid>
@@ -42,7 +42,24 @@
                 <RowDefinition Height="auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <TextBlock FontSize="13" Margin="4" Text="Successed : 123,456,789  Failed :  123,456,789  UpdateTrace : 123,456,789"></TextBlock>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="0.15*"/>
+                    <ColumnDefinition Width="0.25*"/>
+                    <ColumnDefinition Width="0.1*"/>
+                    <ColumnDefinition Width="0.25*"/>
+                    <ColumnDefinition Width="0.13*"/>
+                    <ColumnDefinition Width="0.25*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" FontSize="13" Margin="4" Text="Successed : "/>
+                <TextBlock Name="SuccessedTextBlock" Grid.Column="1" FontSize="13" Margin="4" Text="{Binding successed}"/>
+                <TextBlock Grid.Column="2" FontSize="13" Margin="4" Text="Failed : "/>
+                <TextBlock Grid.Column="3" FontSize="13" Margin="4" Text="{Binding failed}"/>
+                <TextBlock Grid.Column="4" FontSize="13" Margin="4" Text="Updated : "/>
+                <TextBlock Grid.Column="5" FontSize="13" Margin="4" Text="{Binding updated}"/>
+            </Grid>
+
             <DataGrid Grid.Row="1" ScrollViewer.CanContentScroll="True" x:Name="LogDataGrid" AutoGenerateColumns="False" CanUserAddRows="False">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Trace" IsReadOnly="True" Width="0.25*"  Binding="{Binding Path=trace}" />

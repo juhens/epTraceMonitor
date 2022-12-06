@@ -121,31 +121,36 @@ namespace Core
         public ulong? Scan(byte[] valueArr)
         {
             var patternData = new PatternData(valueArr);
-            ulong? result = Compare(ref patternData);
+            ulong? result = Compare(patternData);
             GC.Collect();
             return result;
         }
 
-        private ulong? Compare(ref PatternData pattern)
+        private ulong? Compare(PatternData pattern)
         {
             List<MemoryPage> memoryPageList = GetMemoryPages();
 
-            foreach (var memoryPage in memoryPageList)
+            ulong? result = null;
+            Parallel.ForEach(memoryPageList,
+            (memoryPage, state) =>
             {
                 for (int i = 0; i <= memoryPage.Raw.Length - pattern.RAW.Length;)
                 {
-                    for(int j = pattern.RAW.Length - 1; j >= 0; j--)
+                    for (int j = pattern.RAW.Length - 1; j >= 0; j--)
                         if (pattern.RAW[j] != memoryPage.Raw[i + j])
                             goto Pass;
 
-                    return memoryPage.BaseAddress + (uint)i;
+                    result = memoryPage.BaseAddress + (uint)i;
+                    state.Break();
                 Pass:
                     i += pattern.JumpTable[memoryPage.Raw[i + pattern.RAW.Length - 1]];
                     continue;
                 }
-            }
+            });
+
+
             memoryPageList.Clear();
-            return null;
+            return result;
         }
     }
     public struct PatternData

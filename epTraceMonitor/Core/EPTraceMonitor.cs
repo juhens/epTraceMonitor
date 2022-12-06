@@ -247,9 +247,9 @@ namespace Core
         {
             Winmm.timeBeginPeriod(1);
             var workerDisplayer = new Thread(() => Displayer());
-            var workerCommaner = new Thread(() => Commander());
+            var workerCommander = new Thread(() => Commander());
             workerDisplayer.Start();
-            workerCommaner.Start();
+            workerCommander.Start();
 
 
 

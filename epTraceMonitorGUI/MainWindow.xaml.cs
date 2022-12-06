@@ -1,6 +1,8 @@
 ﻿using MahApps.Metro.Behaviors;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -26,7 +28,6 @@ namespace epTraceMonitorGUI
 
         public MainWindow()
         {
-            mainWindow = this;
             InitializeComponent();
         }
 
@@ -36,9 +37,9 @@ namespace epTraceMonitorGUI
             list.Add(new Log { trace = 1, fileName = "asdf.eps", funcName = "asdfs()", line = 1, code = "dsafsdafsdaf" });
             list.Add(new Log { trace = 214, fileName = "dfgj.eps", funcName = "hfghf()", line = 31, code = "dsafsdafsdaf" });
             list.Add(new Log { trace = 64, fileName = "vncvx.eps", funcName = "fsdf()", line = 51, code = "dsafsdafsdaf" });
-            list.Add(new Log { trace = 455, fileName = "zngf.eps", funcName = "sdfsdf()", line = 71, code = "dsafsdafsdaf" });
-            LogDataGrid.ItemsSource = list;
+            list.Add(new Log { trace = 455, fileName = "zngf.eps", funcName = "sdfsdf()", line = 71, code = "dsafsdafsdaf" });            
         }
+        
         public class Log
         {
             public ulong trace { get; set; }
@@ -67,14 +68,15 @@ namespace epTraceMonitorGUI
             settingWindow.Topmost = true;
             settingWindow.ShowDialog();
         }
+
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             Application.Current.Shutdown();
         }
 
-        private void LogDataGrid_MouseDown(object sender, MouseButtonEventArgs e)
+        private void Button_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("");
+
         }
     }
 }
