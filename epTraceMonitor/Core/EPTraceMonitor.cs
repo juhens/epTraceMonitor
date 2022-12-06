@@ -146,11 +146,13 @@ namespace Core
             int tryCount = 1;
             ulong? traceTableStart = null;
             Console.WriteLine($"게임 입장을 기다리는 중입니다.");
-            while (traceTableStart == null)
+            while (true)
             {
                 Console.Write($"{tryCount}번째 시도중...");
                 Console.SetCursorPosition(0, 1);
                 traceTableStart = j.Scan(headerArr);
+                if (traceTableStart != null)
+                    break;
                 Thread.Sleep(1000);
                 tryCount++;
             }
