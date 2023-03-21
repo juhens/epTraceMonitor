@@ -24,7 +24,7 @@ namespace Core
             if (process == null)
                 throw new Exception("can not found process");
             if (process.MainModule == null)
-                throw new Exception("failed get main module infomation");
+                throw new Exception("failed get main module information");
 
             var comparer = StringComparer.OrdinalIgnoreCase;
             modulesDic = new Dictionary<string, Structs.ModuleInformation>(comparer);
@@ -70,12 +70,10 @@ namespace Core
             return true;
         }
 
-      
-        //All cache
-        private List<MemoryPage> GetMemoryPages()
+        
+        private IEnumerable<MemoryPage> GetMemoryPages()
         {
             Structs.MemoryBasicinformation mbi = new();
-            List<MemoryPage> mpList = new();
             ulong minAddress = this.minAddress;
             ulong maxAddress = this.maxAddress;
 
@@ -86,13 +84,12 @@ namespace Core
                 {
                     byte[] raw = new byte[mbi.RegionSize];
                     Read(mbi.BaseAddress, ref raw);
-                    mpList.Add(new MemoryPage(mbi.BaseAddress, raw));
+                    yield return new MemoryPage(mbi.BaseAddress, raw);
                 }
                 if (mbi.RegionSize == 0)
                     throw new Exception("maybe process terminated");
                 minAddress += mbi.RegionSize;
             }
-            return mpList;
         }
 
         //Setup
@@ -128,11 +125,10 @@ namespace Core
 
         private ulong? Compare(PatternData pattern)
         {
-            List<MemoryPage> memoryPageList = GetMemoryPages();
+            var memoryPages = GetMemoryPages();
 
             ulong? result = null;
-            Parallel.ForEach(memoryPageList,
-            (memoryPage, state) =>
+            foreach (var memoryPage in memoryPages)
             {
                 for (int i = 0; i <= memoryPage.Raw.Length - pattern.RAW.Length;)
                 {
@@ -141,15 +137,11 @@ namespace Core
                             goto Pass;
 
                     result = memoryPage.BaseAddress + (uint)i;
-                    state.Break();
-                Pass:
+                    break;
+                    Pass:
                     i += pattern.JumpTable[memoryPage.Raw[i + pattern.RAW.Length - 1]];
-                    continue;
                 }
-            });
-
-
-            memoryPageList.Clear();
+            }
             return result;
         }
     }
